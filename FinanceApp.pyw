@@ -11,12 +11,52 @@ from tkinter import filedialog  # file choosing ui
 class FinanceApp(Qt.QMainWindow):
     """App to track the piggy bank money ammount"""
 
+    class AskSettings(Qt.QWidget):
+        """Popup to ask the base settings"""
+        done = pyqtSignal()
+        closed = pyqtSignal()
+
+        def start(self):
+            super().__init__()
+            self.isClosed = False
+            self.setWindowTitle("Settings")
+            self.setWindowIcon(QtGui.QIcon("assets\\icon.png"))
+            self.buildUi()
+            self.show()
+        
+        def buildUi(self):
+            """Build the popup UI"""
+            self.mainLayout = Qt.QVBoxLayout()
+            self.setLayout(self.mainLayout)
+
+            self.doneButton = Qt.QPushButton(text="Done")
+            self.doneButton.setFixedHeight(50)
+            self.doneButton.setFont(QtGui.QFont("Arial", 20))
+            self.mainLayout.addWidget(self.doneButton)
+            self.doneButton.clicked.connect(self.doneClicked)
+        
+        def doneClicked(self):
+            """Executes when the done button is pressed"""
+            self.done.emit()
+            self.isClosed = True
+            self.close()
+        
+        def closeEvent(self, event):
+            """Executes when the window is closed"""
+            if not self.isClosed:
+                self.closed.emit()
+    
+
     def start(self):
         """Starts the app"""
         super().__init__()
+        self.getData()
+        self.checkSettings()
+    
+    def loadApp(self):
+        """Loads the app"""
         self.setWindowTitle("FinanceApp")
         self.setWindowIcon(QtGui.QIcon("assets\\icon.png"))
-        self.getData()
         self.buildUi()
         self.configureUi()
         self.showMaximized()
@@ -29,6 +69,8 @@ class FinanceApp(Qt.QMainWindow):
                 json.dump({}, dataFile, indent=4)
         with open("data.json", "r", encoding="utf-8") as dataFile:
             self.data = json.load(dataFile)
+        with open("currencies.json", "r", encoding="utf-8") as currenciesFile:
+            self.currencies = json.load(currenciesFile)
     
     def buildUi(self):
         """Builds the main app UI"""
@@ -45,13 +87,13 @@ class FinanceApp(Qt.QMainWindow):
         self.interactLayout = Qt.QVBoxLayout()
         self.interactLayout.setAlignment(QtCore.Qt.AlignCenter | QtCore.Qt.AlignTop)
         self.notesLayout = Qt.QVBoxLayout()
-        self.notesLayout.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignTop)
+        self.notesLayout.setAlignment(QtCore.Qt.AlignCenter | QtCore.Qt.AlignTop)
         self.historyLayout = Qt.QVBoxLayout()
         self.historyLayout.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignTop)
 
         self.interactWidget.setLayout(self.interactLayout)
         self.notesWidget.setLayout(self.notesLayout)
-        self.historyWidget.setLayout(self.notesLayout)
+        self.historyWidget.setLayout(self.historyLayout)
 
         # creating the splitter
         self.splitter = Qt.QSplitter(QtCore.Qt.Horizontal)
@@ -144,10 +186,54 @@ class FinanceApp(Qt.QMainWindow):
         self.importFileButton.setFont(QtGui.QFont("Arial", 20))
         self.importFileButton.setFixedHeight(50)
         self.filesLayout.addWidget(self.importFileButton)
+
+        self.buildHistory()
+    
+    def buildHistory(self):
+        """Builds the UI on the history widget"""
+        self.historyLabelWidget = Qt.QWidget()
+        self.historyLabelLayout = Qt.QHBoxLayout()
+        self.historyLabelLayout.setAlignment(QtCore.Qt.AlignCenter)
+        self.historyLabelWidget.setLayout(self.historyLabelLayout)
+        self.historyLayout.addWidget(self.historyLabelWidget)
+
+        self.historyLabelLayout.addStretch()
+        self.historyLabel = Qt.QLabel(text="Quick transactions history")
+        self.historyLabel.setFont(QtGui.QFont("Arial", 20))
+        self.historyLabel.setAlignment(QtCore.Qt.AlignCenter)
+        self.historyLabelLayout.addWidget(self.historyLabel)
+        self.historyLayout.addSpacing(50)
+        self.historyLabelLayout.addStretch()
+
+        self.historyListWidget = Qt.QWidget()
+        self.historyListLayout = Qt.QVBoxLayout()
+        self.historyListWidget.setLayout(self.historyListLayout)
+        self.historyLayout.addWidget(self.historyListWidget)
+    
+    def checkSettings(self):
+        """Asks for the settings on first session"""
+        def done():
+            with open("data.json", "r", encoding="utf-8") as dataFile:
+                self.data = json.load(dataFile)
+            self.loadApp()
+        
+        def closed():
+            self.checkSettings()
+
+        if not self.data:
+            self.askSettingsPopup = self.AskSettings()
+            self.askSettingsPopup.start()
+            self.askSettingsPopup.done.connect(done)
+            self.askSettingsPopup.closed.connect(closed)
+        else:
+            self.loadApp()
+    
+    def loadUi(self):
+        """Loads the UI elements that require access to the save data or settings"""
+        pass
     
     def configureUi(self):
         """Connects and makes the widgets functional"""
-        #TODO
         pass
 
 
