@@ -15,8 +15,10 @@ class FinanceApp(Qt.QMainWindow):
         """Starts the app"""
         super().__init__()
         self.setWindowTitle("FinanceApp")
+        self.setWindowIcon(QtGui.QIcon("assets\\icon.png"))
         self.getData()
         self.buildUi()
+        self.configureUi()
         self.showMaximized()
         self.show()
     
@@ -37,13 +39,116 @@ class FinanceApp(Qt.QMainWindow):
 
         # secondary widgets and layouts
         self.interactWidget = Qt.QWidget()
-        self.noteWidget = Qt.QWidget()
+        self.notesWidget = Qt.QWidget()
         self.historyWidget = Qt.QWidget()
 
         self.interactLayout = Qt.QVBoxLayout()
-        self.noteLayout = Qt.QVBoxLayout()
+        self.interactLayout.setAlignment(QtCore.Qt.AlignCenter | QtCore.Qt.AlignTop)
+        self.notesLayout = Qt.QVBoxLayout()
+        self.notesLayout.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignTop)
         self.historyLayout = Qt.QVBoxLayout()
+        self.historyLayout.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignTop)
 
+        self.interactWidget.setLayout(self.interactLayout)
+        self.notesWidget.setLayout(self.notesLayout)
+        self.historyWidget.setLayout(self.notesLayout)
+
+        # creating the splitter
+        self.splitter = Qt.QSplitter(QtCore.Qt.Horizontal)
+        self.mainLayout.addWidget(self.splitter)
+        self.splitter.addWidget(self.interactWidget)
+        self.splitter.addWidget(self.notesWidget)
+        self.splitter.addWidget(self.historyWidget)
+        self.splitter.setSizes([250, 350, 400])
+
+        self.buildInteract()
+    
+    def buildInteract(self):
+        """Builds the interactWidget zone"""
+        # build the main zones
+        self.statusWidget = Qt.QWidget()
+        self.statusLayout = Qt.QVBoxLayout()
+        self.statusLayout.setAlignment(QtCore.Qt.AlignCenter | QtCore.Qt.AlignTop)
+        self.statusWidget.setLayout(self.statusLayout)
+        self.interactLayout.addWidget(self.statusWidget)
+
+        self.interactLayout.addSpacing(50)
+
+        self.optionsWidget = Qt.QWidget()
+        self.optionsLayout = Qt.QVBoxLayout()
+        self.optionsLayout.setAlignment(QtCore.Qt.AlignCenter | QtCore.Qt.AlignTop)
+        self.optionsWidget.setLayout(self.optionsLayout)
+        self.interactLayout.addWidget(self.optionsWidget)
+
+        # build the status widget
+        self.usernameInput = Qt.QLineEdit()
+        self.usernameInput.setPlaceholderText("Username")
+        self.usernameInput.setFont(QtGui.QFont("Arial", 20))
+        self.usernameInput.setFixedHeight(50)
+        self.statusLayout.addWidget(self.usernameInput)
+        self.statusLayout.addSpacing(20)
+
+        self.balanceLabel = Qt.QLabel()
+        self.balanceLabel.setFont(QtGui.QFont("Arial", 24))
+        self.balanceLabel.setAlignment(QtCore.Qt.AlignCenter)
+        self.statusLayout.addWidget(self.balanceLabel)
+
+        self.realBalanceLabel = Qt.QLabel()
+        self.realBalanceLabel.setFont(QtGui.QFont("Arial", 16))
+        self.realBalanceLabel.setAlignment(QtCore.Qt.AlignCenter)
+        self.statusLayout.addWidget(self.realBalanceLabel)
+
+        # build the options widget
+        self.addMoneyButton = Qt.QPushButton(text="Add money")
+        self.addMoneyButton.setFont(QtGui.QFont("Arial", 20))
+        self.addMoneyButton.setFixedHeight(50)
+        self.optionsLayout.addWidget(self.addMoneyButton)
+
+        self.removeMoneyButton = Qt.QPushButton(text="Remove money")
+        self.removeMoneyButton.setFont(QtGui.QFont("Arial", 20))
+        self.removeMoneyButton.setFixedHeight(50)
+        self.optionsLayout.addWidget(self.removeMoneyButton)
+
+        self.lendMoneyButton = Qt.QPushButton(text="Lend money")
+        self.lendMoneyButton.setFont(QtGui.QFont("Arial", 20))
+        self.lendMoneyButton.setFixedHeight(50)
+        self.optionsLayout.addWidget(self.lendMoneyButton)
+
+        self.trackLoansButton = Qt.QPushButton(text="Track loans")
+        self.trackLoansButton.setFont(QtGui.QFont("Arial", 20))
+        self.trackLoansButton.setFixedHeight(50)
+        self.optionsLayout.addWidget(self.trackLoansButton)
+
+        self.viewTransactionsButton = Qt.QPushButton(text="View transactions")
+        self.viewTransactionsButton.setFont(QtGui.QFont("Arial", 20))
+        self.viewTransactionsButton.setFixedHeight(50)
+        self.optionsLayout.addWidget(self.viewTransactionsButton)
+
+        # zone to change file
+        self.filesWidget = Qt.QWidget()
+        self.filesLayout = Qt.QHBoxLayout()
+        self.filesWidget.setLayout(self.filesLayout)
+        self.optionsLayout.addWidget(self.filesWidget)
+        
+        self.newFileButton = Qt.QPushButton(text="New")
+        self.newFileButton.setFont(QtGui.QFont("Arial", 20))
+        self.newFileButton.setFixedHeight(50)
+        self.filesLayout.addWidget(self.newFileButton)
+
+        self.exportFileButton = Qt.QPushButton(text="Export")
+        self.exportFileButton.setFont(QtGui.QFont("Arial", 20))
+        self.exportFileButton.setFixedHeight(50)
+        self.filesLayout.addWidget(self.exportFileButton)
+
+        self.importFileButton = Qt.QPushButton(text="Import")
+        self.importFileButton.setFont(QtGui.QFont("Arial", 20))
+        self.importFileButton.setFixedHeight(50)
+        self.filesLayout.addWidget(self.importFileButton)
+    
+    def configureUi(self):
+        """Connects and makes the widgets functional"""
+        #TODO
+        pass
 
 
 
