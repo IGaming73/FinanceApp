@@ -13,7 +13,7 @@ class FinanceApp(Qt.QMainWindow):
 
     class AskSettings(Qt.QWidget):
         """Popup to ask the base settings"""
-        done = pyqtSignal()
+        done = pyqtSignal(dict)
         closed = pyqtSignal()
 
         def start(self):
@@ -29,6 +29,26 @@ class FinanceApp(Qt.QMainWindow):
             self.mainLayout = Qt.QVBoxLayout()
             self.setLayout(self.mainLayout)
 
+            with open("currencies.json", "r", encoding="utf-8") as currenciesFile:
+                self.currencies = json.load(currenciesFile)
+            
+            self.currencyWidget = Qt.QWidget()
+            self.currencyLayout = Qt.QHBoxLayout()
+            self.currencyWidget.setLayout(self.currencyLayout)
+            self.mainLayout.addWidget(self.currencyWidget)
+
+            self.currencyLabel = Qt.QLabel(text="Select currency:")
+            self.currencyLabel.setFont(QtGui.QFont("Arial", 16))
+            self.currencyLabel.setWordWrap(True)
+            self.currencyLayout.addWidget(self.currencyLabel)
+            
+            self.currencySelect = Qt.QComboBox()
+            self.currencySelect.setFont(QtGui.QFont("Arial", 16))
+            self.currencySelect.setFixedHeight(40)
+            self.labeledCurrencies = [f"{currency} ({currencyData['symbol']})" for currency, currencyData in self.currencies.items()]
+            self.currencySelect.addItems(self.labeledCurrencies)
+            self.currencyLayout.addWidget(self.currencySelect)
+
             self.doneButton = Qt.QPushButton(text="Done")
             self.doneButton.setFixedHeight(50)
             self.doneButton.setFont(QtGui.QFont("Arial", 20))
@@ -37,7 +57,7 @@ class FinanceApp(Qt.QMainWindow):
         
         def doneClicked(self):
             """Executes when the done button is pressed"""
-            self.done.emit()
+            self.done.emit({"currency": self.currencySelect.currentText().split("(")[0][:-1]})
             self.isClosed = True
             self.close()
         
@@ -52,6 +72,28 @@ class FinanceApp(Qt.QMainWindow):
         super().__init__()
         self.getData()
         self.checkSettings()
+    
+    def checkSettings(self):
+        """Asks for the settings on first session"""
+        def done(settings:dict):
+            with open("data.json", "w", encoding="utf-8") as dataFile:
+                json.dump({"settings": {"name": "", "currency": settings["currency"]},
+                           "notes": {note:0 for note in self.currencies[settings["currency"]]["ammounts"]},
+                           "transactions": []}, dataFile, indent=4)
+            with open("data.json", "r", encoding="utf-8") as dataFile:
+                self.data = json.load(dataFile)
+            self.loadApp()
+        
+        def closed():
+            self.checkSettings()
+
+        if not self.data:
+            self.askSettingsPopup = self.AskSettings()
+            self.askSettingsPopup.start()
+            self.askSettingsPopup.done.connect(done)
+            self.askSettingsPopup.closed.connect(closed)
+        else:
+            self.loadApp()
     
     def loadApp(self):
         """Loads the app"""
@@ -68,7 +110,10 @@ class FinanceApp(Qt.QMainWindow):
             with open("data.json", "w", encoding="utf-8") as dataFile:
                 json.dump({}, dataFile, indent=4)
         with open("data.json", "r", encoding="utf-8") as dataFile:
-            self.data = json.load(dataFile)
+            try:
+                self.data = json.load(dataFile)
+            except json.decoder.JSONDecodeError:
+                self.data = {}
         with open("currencies.json", "r", encoding="utf-8") as currenciesFile:
             self.currencies = json.load(currenciesFile)
     
@@ -123,19 +168,19 @@ class FinanceApp(Qt.QMainWindow):
         self.interactLayout.addWidget(self.optionsWidget)
 
         # build the status widget
-        self.usernameInput = Qt.QLineEdit()
+        self.usernameInput = Qt.QLineEdit(text=self.data["settings"]["name"])
         self.usernameInput.setPlaceholderText("Username")
         self.usernameInput.setFont(QtGui.QFont("Arial", 20))
         self.usernameInput.setFixedHeight(50)
         self.statusLayout.addWidget(self.usernameInput)
         self.statusLayout.addSpacing(20)
 
-        self.balanceLabel = Qt.QLabel()
+        self.balanceLabel = Qt.QLabel(text=f"{self.calculateAmmount()} {self.currencies[self.data['settings']['currency']]['symbol']}")
         self.balanceLabel.setFont(QtGui.QFont("Arial", 24))
         self.balanceLabel.setAlignment(QtCore.Qt.AlignCenter)
         self.statusLayout.addWidget(self.balanceLabel)
 
-        self.realBalanceLabel = Qt.QLabel()
+        self.realBalanceLabel = Qt.QLabel(text=f"({self.calculateAmmount(realBalance=True)} {self.currencies[self.data['settings']['currency']]['symbol']} in bank)")
         self.realBalanceLabel.setFont(QtGui.QFont("Arial", 16))
         self.realBalanceLabel.setAlignment(QtCore.Qt.AlignCenter)
         self.statusLayout.addWidget(self.realBalanceLabel)
@@ -187,6 +232,34 @@ class FinanceApp(Qt.QMainWindow):
         self.importFileButton.setFixedHeight(50)
         self.filesLayout.addWidget(self.importFileButton)
 
+        self.buildNotes()
+    
+    def buildNotes(self):
+        """Builds the UI on the notes widget"""
+        self.notesWidgetsValues = []
+
+        self.noteScroll = Qt.QScrollArea()
+        self.noteScroll.setWidgetResizable(True)
+        self.noteScrollWidget = Qt.QWidget()
+        self.noteScrollLayout = Qt.QVBoxLayout(self.noteScrollWidget)
+        self.noteScroll.setWidget(self.noteScrollWidget)
+        self.notesLayout.addWidget(self.noteScroll)
+        self.noteScroll.setStyleSheet("QScrollArea {border: none;}")
+
+        for note, ammount in self.data["notes"].items():
+            noteWidget = Qt.QWidget()
+            noteLayout = Qt.QHBoxLayout()
+            noteLayout.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignCenter)
+            noteWidget.setLayout(noteLayout)
+            self.noteScrollLayout.addWidget(noteWidget)
+
+            noteImage = Qt.QLabel()
+            noteImage.setFixedWidth(100)
+            pixmap = QtGui.QPixmap(f"assets\\money\\{self.data['settings']['currency']}\\{note}.png")
+            resizedPixmap = pixmap.scaledToHeight(50, QtCore.Qt.SmoothTransformation)
+            noteImage.setPixmap(resizedPixmap)
+            noteLayout.addWidget(noteImage)
+
         self.buildHistory()
     
     def buildHistory(self):
@@ -210,31 +283,14 @@ class FinanceApp(Qt.QMainWindow):
         self.historyListWidget.setLayout(self.historyListLayout)
         self.historyLayout.addWidget(self.historyListWidget)
     
-    def checkSettings(self):
-        """Asks for the settings on first session"""
-        def done():
-            with open("data.json", "r", encoding="utf-8") as dataFile:
-                self.data = json.load(dataFile)
-            self.loadApp()
-        
-        def closed():
-            self.checkSettings()
-
-        if not self.data:
-            self.askSettingsPopup = self.AskSettings()
-            self.askSettingsPopup.start()
-            self.askSettingsPopup.done.connect(done)
-            self.askSettingsPopup.closed.connect(closed)
-        else:
-            self.loadApp()
-    
-    def loadUi(self):
-        """Loads the UI elements that require access to the save data or settings"""
-        pass
-    
     def configureUi(self):
         """Connects and makes the widgets functional"""
         pass
+
+    def calculateAmmount(self, realBalance:bool=False) -> float:
+        """Calculates the total amount of money from the notes and coins, deducting any outstanding loans"""
+        #TODO: placeholder value
+        return 127.12
 
 
 
