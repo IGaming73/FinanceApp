@@ -5,6 +5,7 @@ import os  # os interaction
 import sys  # system functions
 import json  # handle json data
 import darkdetect  # detect dark mode
+import locale  # region settings
 from tkinter import filedialog  # file choosing ui
 
 
@@ -78,8 +79,8 @@ class FinanceApp(Qt.QMainWindow):
         def done(settings:dict):
             with open("data.json", "w", encoding="utf-8") as dataFile:
                 json.dump({"settings": {"name": "", "currency": settings["currency"]},
-                           "notes": {note:0 for note in self.currencies[settings["currency"]]["ammounts"]},
-                           "transactions": []}, dataFile, indent=4)
+                           "transactions": [],
+                           "loans": []}, dataFile, indent=4)
             with open("data.json", "r", encoding="utf-8") as dataFile:
                 self.data = json.load(dataFile)
             self.loadApp()
@@ -99,6 +100,7 @@ class FinanceApp(Qt.QMainWindow):
         """Loads the app"""
         self.setWindowTitle("FinanceApp")
         self.setWindowIcon(QtGui.QIcon("assets\\icon.png"))
+        self.defineVariables()
         self.buildUi()
         self.configureUi()
         self.showMaximized()
@@ -116,6 +118,12 @@ class FinanceApp(Qt.QMainWindow):
                 self.data = {}
         with open("currencies.json", "r", encoding="utf-8") as currenciesFile:
             self.currencies = json.load(currenciesFile)
+    
+    def defineVariables(self):
+        """Define some variables that will be useful"""
+        self.currency = self.data["settings"]["currency"]
+        self.currencyData = self.currencies[self.currency]
+        locale.setlocale(locale.LC_ALL, "")
     
     def buildUi(self):
         """Builds the main app UI"""
@@ -186,15 +194,10 @@ class FinanceApp(Qt.QMainWindow):
         self.statusLayout.addWidget(self.realBalanceLabel)
 
         # build the options widget
-        self.addMoneyButton = Qt.QPushButton(text="Add money")
+        self.addMoneyButton = Qt.QPushButton(text="Transfer money")
         self.addMoneyButton.setFont(QtGui.QFont("Arial", 20))
         self.addMoneyButton.setFixedHeight(50)
         self.optionsLayout.addWidget(self.addMoneyButton)
-
-        self.removeMoneyButton = Qt.QPushButton(text="Remove money")
-        self.removeMoneyButton.setFont(QtGui.QFont("Arial", 20))
-        self.removeMoneyButton.setFixedHeight(50)
-        self.optionsLayout.addWidget(self.removeMoneyButton)
 
         self.lendMoneyButton = Qt.QPushButton(text="Lend money")
         self.lendMoneyButton.setFont(QtGui.QFont("Arial", 20))
@@ -236,7 +239,7 @@ class FinanceApp(Qt.QMainWindow):
     
     def buildNotes(self):
         """Builds the UI on the notes widget"""
-        self.notesWidgetsValues = []
+        self.notesValueWidgets = []
 
         self.noteScroll = Qt.QScrollArea()
         self.noteScroll.setWidgetResizable(True)
@@ -246,7 +249,7 @@ class FinanceApp(Qt.QMainWindow):
         self.notesLayout.addWidget(self.noteScroll)
         self.noteScroll.setStyleSheet("QScrollArea {border: none;}")
 
-        for note, ammount in self.data["notes"].items():
+        for note in self.currencyData["ammounts"]:
             noteWidget = Qt.QWidget()
             noteLayout = Qt.QHBoxLayout()
             noteLayout.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignCenter)
@@ -254,11 +257,25 @@ class FinanceApp(Qt.QMainWindow):
             self.noteScrollLayout.addWidget(noteWidget)
 
             noteImage = Qt.QLabel()
-            noteImage.setFixedWidth(100)
+            noteImage.setFixedWidth(125)
             pixmap = QtGui.QPixmap(f"assets\\money\\{self.data['settings']['currency']}\\{note}.png")
             resizedPixmap = pixmap.scaledToHeight(50, QtCore.Qt.SmoothTransformation)
             noteImage.setPixmap(resizedPixmap)
             noteLayout.addWidget(noteImage)
+
+            valueLabel = Qt.QLabel(text=f"{note} {self.currencyData["symbol"]}")
+            valueLabel.setFont(QtGui.QFont("Arial", 20))
+            valueLabel.setFixedWidth(100)
+            noteLayout.addWidget(valueLabel)
+
+            colonLabel = Qt.QLabel(text=":")
+            colonLabel.setFont(QtGui.QFont("Arial", 20))
+            colonLabel.setFixedWidth(20)
+            noteLayout.addWidget(colonLabel)
+
+            self.notesValueWidgets.append(Qt.QLabel(text="0"))
+            self.notesValueWidgets[-1].setFont(QtGui.QFont("Arial", 20))
+            noteLayout.addWidget(self.notesValueWidgets[-1])
 
         self.buildHistory()
     
@@ -282,6 +299,24 @@ class FinanceApp(Qt.QMainWindow):
         self.historyListLayout = Qt.QVBoxLayout()
         self.historyListWidget.setLayout(self.historyListLayout)
         self.historyLayout.addWidget(self.historyListWidget)
+    
+    def calculateMoney(self) -> list:
+        """returns a list with the total money, actual possessed money, and a dict of every notes"""
+        totalMoney, possessedMoney = 0, 0
+        notes = {note: 0 for note in self.currencyData["ammounts"]}
+        transactions, loans = self.data["transactions"], self.data["loans"]
+        for transaction in transactions:
+            for note, change in transaction["notes"].items():
+                notes[note] += change
+                totalMoney += change*float(note)
+        possessedMoney = totalMoney
+        #TODO: loan calculations
+        for loan in loans:
+            for note, change in loan["notes"].items():
+                notes[note] += change
+                if loan["repaid"]:
+                    notes[note] += loan["repaid"][note]
+
     
     def configureUi(self):
         """Connects and makes the widgets functional"""
