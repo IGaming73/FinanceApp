@@ -5,6 +5,7 @@ import os  # os interaction
 import sys  # system functions
 import json  # handle json data
 import darkdetect  # detect dark mode
+import functools  # tools for functions
 import datetime  # handle time
 from tkinter import filedialog  # file choosing ui
 
@@ -95,9 +96,41 @@ class FinanceApp(Qt.QMainWindow):
             self.mainLayout.addWidget(self.noteScroll)
             self.noteScroll.setStyleSheet("QScrollArea {border: none;}")
 
-            self.valueLabels = []
+            self.infosWidget = Qt.QWidget()
+            self.infosLayout = Qt.QHBoxLayout()
+            self.infosLayout.setAlignment(QtCore.Qt.AlignCenter | QtCore.Qt.AlignRight)
+            self.infosWidget.setLayout(self.infosLayout)
+            self.mainLayout.addWidget(self.infosWidget)
 
-            for note in self.currencyData["ammounts"]:
+            self.modifLabel = Qt.QLabel(text="No ammount modification")
+            self.modifLabel.setFont(QtGui.QFont("Arial", 24))
+            self.infosLayout.addWidget(self.modifLabel)
+            self.infosLayout.addSpacing(100)
+
+            self.commentLabel = Qt.QLabel(text="Comment: ")
+            self.commentLabel.setFont(QtGui.QFont("Arial", 20))
+            self.infosLayout.addWidget(self.commentLabel)
+
+            self.commentInput = Qt.QLineEdit()
+            self.commentInput.setFont(QtGui.QFont("Arial", 20))
+            self.commentInput.setPlaceholderText("Comment on the transaction")
+            self.commentInput.setFixedHeight(50)
+            self.infosLayout.addWidget(self.commentInput)
+            self.infosLayout.addSpacing(50)
+
+            self.cancelButton = Qt.QPushButton(text="Cancel")
+            self.cancelButton.setFont(QtGui.QFont("Arial", 20))
+            self.cancelButton.setFixedHeight(50)
+            self.infosLayout.addWidget(self.cancelButton)
+
+            self.applyButton = Qt.QPushButton(text="Apply")
+            self.applyButton.setFont(QtGui.QFont("Arial", 20))
+            self.applyButton.setFixedHeight(50)
+            self.infosLayout.addWidget(self.applyButton)
+
+            self.valueLabels = {}
+
+            for note in self.currencyData["notes"]:
                 noteWidget = Qt.QWidget()
                 noteLayout = Qt.QHBoxLayout()
                 noteLayout.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignCenter)
@@ -121,25 +154,72 @@ class FinanceApp(Qt.QMainWindow):
                 colonLabel.setMinimumWidth(20)
                 noteLayout.addWidget(colonLabel)
 
+                availableLabel = Qt.QLabel(text="available:")
+                availableLabel.setFont(QtGui.QFont("Arial", 20))
+                noteLayout.addWidget(availableLabel)
+
+                availableValueLabel = Qt.QLabel(text=str(self.moneyData["notes"][note]))
+                availableValueLabel.setMinimumWidth(50)
+                availableValueLabel.setFont(QtGui.QFont("Arial", 20))
+                noteLayout.addWidget(availableValueLabel)
+
+                semicolonLabel = Qt.QLabel(text=";")
+                semicolonLabel.setFont(QtGui.QFont("Arial", 20))
+                semicolonLabel.setMinimumWidth(20)
+                noteLayout.addWidget(semicolonLabel)
+
+                changeLabel = Qt.QLabel(text="add/remove:")
+                changeLabel.setFont(QtGui.QFont("Arial", 20))
+                noteLayout.addWidget(changeLabel)
+
                 valueLabel = Qt.QLabel(text="0")
                 valueLabel.setFont(QtGui.QFont("Arial", 20))
-                valueLabel.setMinimumWidth(40)
+                valueLabel.setMinimumWidth(50)
                 noteLayout.addWidget(valueLabel)
-                self.valueLabels.append(valueLabel)
-
-                addButton = Qt.QPushButton()
-                addButton.setIcon(QtGui.QIcon("assets\\add.png"))
-                addButton.setIconSize(QtCore.QSize(40, 40))
-                addButton.setFixedSize(50, 50)
-                noteLayout.addWidget(addButton)
-
-                noteLayout.addSpacing(10)
+                self.valueLabels[note] = valueLabel
 
                 removeButton = Qt.QPushButton()
                 removeButton.setIcon(QtGui.QIcon("assets\\remove.png"))
                 removeButton.setIconSize(QtCore.QSize(40, 40))
                 removeButton.setFixedSize(50, 50)
                 noteLayout.addWidget(removeButton)
+                removeButton.clicked.connect(functools.partial(self.removeClicked, note))
+
+                noteLayout.addSpacing(10)
+
+                addButton = Qt.QPushButton()
+                addButton.setIcon(QtGui.QIcon("assets\\add.png"))
+                addButton.setIconSize(QtCore.QSize(40, 40))
+                addButton.setFixedSize(50, 50)
+                noteLayout.addWidget(addButton)
+                addButton.clicked.connect(functools.partial(self.addClicked, note))
+        
+        def addClicked(self, note):
+            """Adds one to the note"""
+            val = int(self.valueLabels[note].text())
+            val += 1
+            self.valueLabels[note].setText(str(val))
+            self.updateModif()
+
+        def removeClicked(self, note):
+            """Removes one to the note"""
+            val = int(self.valueLabels[note].text())
+            if val > -1*self.moneyData["notes"][note]:
+                val -= 1
+                self.valueLabels[note].setText(str(val))
+                self.updateModif()
+        
+        def updateModif(self):
+            """Updates the modifLabel text"""
+            self.totalModif = 0
+            for note in self.currencyData["notes"]:
+                self.totalModif += float(self.valueLabels[note].text())*float(note)
+            if self.totalModif == 0:
+                self.modifLabel.setText("No ammount modification")
+            elif self.totalModif > 0:
+                self.modifLabel.setText(f"Adding {float(self.totalModif):.2f} {self.currencyData['symbol']} total")
+            else:
+                self.modifLabel.setText(f"Removing {float(-1*self.totalModif):.2f} {self.currencyData['symbol']} total")
     
 
 
@@ -181,6 +261,7 @@ class FinanceApp(Qt.QMainWindow):
         if not self.reloaded:
             self.setWindowTitle("FinanceApp")
             self.setWindowIcon(QtGui.QIcon("assets\\icon.png"))
+            self.setFocus()
             self.showMaximized()
             self.show()
     
@@ -260,12 +341,12 @@ class FinanceApp(Qt.QMainWindow):
         self.statusLayout.addWidget(self.usernameInput)
         self.statusLayout.addSpacing(20)
 
-        self.balanceLabel = Qt.QLabel(text=f"{self.moneyData["total"]} {self.currencies[self.data['settings']['currency']]['symbol']}")
+        self.balanceLabel = Qt.QLabel(text=f"{float(self.moneyData['total']):.2f} {self.currencyData['symbol']}")
         self.balanceLabel.setFont(QtGui.QFont("Arial", 24))
         self.balanceLabel.setAlignment(QtCore.Qt.AlignCenter)
         self.statusLayout.addWidget(self.balanceLabel)
 
-        self.realBalanceLabel = Qt.QLabel(text=f"({self.moneyData["possessed"]} {self.currencies[self.data['settings']['currency']]['symbol']} in bank)")
+        self.realBalanceLabel = Qt.QLabel(text=f"({float(self.moneyData["possessed"]):.2f} {self.currencyData['symbol']} in bank)")
         self.realBalanceLabel.setFont(QtGui.QFont("Arial", 16))
         self.realBalanceLabel.setAlignment(QtCore.Qt.AlignCenter)
         self.statusLayout.addWidget(self.realBalanceLabel)
@@ -325,7 +406,7 @@ class FinanceApp(Qt.QMainWindow):
         self.notesLayout.addWidget(self.noteScroll)
         self.noteScroll.setStyleSheet("QScrollArea {border: none;}")
 
-        for note in self.currencyData["ammounts"]:
+        for note in self.currencyData["notes"]:
             noteWidget = Qt.QWidget()
             noteLayout = Qt.QHBoxLayout()
             noteLayout.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignCenter)
@@ -391,7 +472,7 @@ class FinanceApp(Qt.QMainWindow):
                     transactionText = "loan (unpaid): lent"
             else:
                 transactionText = "added" if totalTransfer >= 0 else "removed"
-            transactionLabel = Qt.QLabel(text=f"{transaction["date"]}: {transactionText} {abs(totalTransfer)} {self.currencyData["symbol"]}")
+            transactionLabel = Qt.QLabel(text=f"{transaction["date"].split(" ")[0]}: {transactionText} {abs(totalTransfer)} {self.currencyData["symbol"]}")
             transactionLabel.setFont(QtGui.QFont("Arial", 20))
             self.historyListLayout.addWidget(transactionLabel)
             self.historyListLayout.addSpacing(10)
@@ -399,7 +480,7 @@ class FinanceApp(Qt.QMainWindow):
     def calculateMoney(self) -> list:
         """returns a list with the total money, actual possessed money, and a dict of every notes"""
         totalMoney = 0
-        notes = {note: 0 for note in self.currencyData["ammounts"]}
+        notes = {note: 0 for note in self.currencyData["notes"]}
         transactions, loans = self.data["transactions"], self.data["loans"]
         for transaction in transactions:
             for note, change in transaction["notes"].items():
