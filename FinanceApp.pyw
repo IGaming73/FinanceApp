@@ -5,7 +5,7 @@ import os  # os interaction
 import sys  # system functions
 import json  # handle json data
 import darkdetect  # detect dark mode
-import locale  # region settings
+import datetime  # handle time
 from tkinter import filedialog  # file choosing ui
 
 
@@ -123,7 +123,7 @@ class FinanceApp(Qt.QMainWindow):
         """Define some variables that will be useful"""
         self.currency = self.data["settings"]["currency"]
         self.currencyData = self.currencies[self.currency]
-        locale.setlocale(locale.LC_ALL, "")
+        self.moneyData = self.calculateMoney()
     
     def buildUi(self):
         """Builds the main app UI"""
@@ -183,12 +183,12 @@ class FinanceApp(Qt.QMainWindow):
         self.statusLayout.addWidget(self.usernameInput)
         self.statusLayout.addSpacing(20)
 
-        self.balanceLabel = Qt.QLabel(text=f"{self.calculateAmmount()} {self.currencies[self.data['settings']['currency']]['symbol']}")
+        self.balanceLabel = Qt.QLabel(text=f"{self.moneyData["total"]} {self.currencies[self.data['settings']['currency']]['symbol']}")
         self.balanceLabel.setFont(QtGui.QFont("Arial", 24))
         self.balanceLabel.setAlignment(QtCore.Qt.AlignCenter)
         self.statusLayout.addWidget(self.balanceLabel)
 
-        self.realBalanceLabel = Qt.QLabel(text=f"({self.calculateAmmount(realBalance=True)} {self.currencies[self.data['settings']['currency']]['symbol']} in bank)")
+        self.realBalanceLabel = Qt.QLabel(text=f"({self.moneyData["possessed"]} {self.currencies[self.data['settings']['currency']]['symbol']} in bank)")
         self.realBalanceLabel.setFont(QtGui.QFont("Arial", 16))
         self.realBalanceLabel.setAlignment(QtCore.Qt.AlignCenter)
         self.statusLayout.addWidget(self.realBalanceLabel)
@@ -245,6 +245,7 @@ class FinanceApp(Qt.QMainWindow):
         self.noteScroll.setWidgetResizable(True)
         self.noteScrollWidget = Qt.QWidget()
         self.noteScrollLayout = Qt.QVBoxLayout(self.noteScrollWidget)
+        self.noteScrollLayout.setAlignment(QtCore.Qt.AlignCenter | QtCore.Qt.AlignTop)
         self.noteScroll.setWidget(self.noteScrollWidget)
         self.notesLayout.addWidget(self.noteScroll)
         self.noteScroll.setStyleSheet("QScrollArea {border: none;}")
@@ -265,15 +266,15 @@ class FinanceApp(Qt.QMainWindow):
 
             valueLabel = Qt.QLabel(text=f"{note} {self.currencyData["symbol"]}")
             valueLabel.setFont(QtGui.QFont("Arial", 20))
-            valueLabel.setFixedWidth(100)
+            valueLabel.setMinimumWidth(90)
             noteLayout.addWidget(valueLabel)
 
             colonLabel = Qt.QLabel(text=":")
             colonLabel.setFont(QtGui.QFont("Arial", 20))
-            colonLabel.setFixedWidth(20)
+            colonLabel.setMinimumWidth(20)
             noteLayout.addWidget(colonLabel)
 
-            self.notesValueWidgets.append(Qt.QLabel(text="0"))
+            self.notesValueWidgets.append(Qt.QLabel(text=str(self.moneyData["notes"][note])))
             self.notesValueWidgets[-1].setFont(QtGui.QFont("Arial", 20))
             noteLayout.addWidget(self.notesValueWidgets[-1])
 
@@ -281,28 +282,47 @@ class FinanceApp(Qt.QMainWindow):
     
     def buildHistory(self):
         """Builds the UI on the history widget"""
+        self.historyScroll = Qt.QScrollArea()
+        self.historyScroll.setWidgetResizable(True)
+        self.historyScrollWidget = Qt.QWidget()
+        self.historyScrollLayout = Qt.QVBoxLayout(self.historyScrollWidget)
+        self.historyScrollLayout.setAlignment(QtCore.Qt.AlignCenter | QtCore.Qt.AlignTop)
+        self.historyScroll.setWidget(self.historyScrollWidget)
+        self.historyLayout.addWidget(self.historyScroll)
+        self.historyScroll.setStyleSheet("QScrollArea {border: none;}")
+
         self.historyLabelWidget = Qt.QWidget()
         self.historyLabelLayout = Qt.QHBoxLayout()
-        self.historyLabelLayout.setAlignment(QtCore.Qt.AlignCenter)
         self.historyLabelWidget.setLayout(self.historyLabelLayout)
-        self.historyLayout.addWidget(self.historyLabelWidget)
+        self.historyScrollLayout.addWidget(self.historyLabelWidget)
 
-        self.historyLabelLayout.addStretch()
         self.historyLabel = Qt.QLabel(text="Quick transactions history")
-        self.historyLabel.setFont(QtGui.QFont("Arial", 20))
+        self.historyLabel.setFont(QtGui.QFont("Arial", 24))
         self.historyLabel.setAlignment(QtCore.Qt.AlignCenter)
         self.historyLabelLayout.addWidget(self.historyLabel)
-        self.historyLayout.addSpacing(50)
-        self.historyLabelLayout.addStretch()
+        self.historyScrollLayout.addSpacing(50)
 
         self.historyListWidget = Qt.QWidget()
         self.historyListLayout = Qt.QVBoxLayout()
         self.historyListWidget.setLayout(self.historyListLayout)
-        self.historyLayout.addWidget(self.historyListWidget)
+        self.historyScrollLayout.addWidget(self.historyListWidget)
+
+        for transaction in sorted(self.data["transactions"]+self.data["loans"], key=lambda transaction: datetime.datetime.strptime(transaction.get("date", "01/01/1970 00:00:00"), "%d/%m/%Y %H:%M:%S"), reverse=True):
+            totalTransfer = self.calculateMoneyTransaction(transaction)
+            transactionText = "added" if totalTransfer >= 0 else "removed"
+            if "repaid" in transaction:
+                if transaction["repaid"]:
+                    transactionText = "loan: " + transactionText
+                else:
+                    transactionText = "loan (unpaid): " + transactionText
+            transactionLabel = Qt.QLabel(text=f"{transaction["date"]}: {transactionText} {abs(totalTransfer)} {self.currencyData["symbol"]}")
+            transactionLabel.setFont(QtGui.QFont("Arial", 20))
+            self.historyListLayout.addWidget(transactionLabel)
+            self.historyListLayout.addSpacing(10)
     
     def calculateMoney(self) -> list:
         """returns a list with the total money, actual possessed money, and a dict of every notes"""
-        totalMoney, possessedMoney = 0, 0
+        totalMoney = 0
         notes = {note: 0 for note in self.currencyData["ammounts"]}
         transactions, loans = self.data["transactions"], self.data["loans"]
         for transaction in transactions:
@@ -310,22 +330,29 @@ class FinanceApp(Qt.QMainWindow):
                 notes[note] += change
                 totalMoney += change*float(note)
         possessedMoney = totalMoney
-        #TODO: loan calculations
+        
         for loan in loans:
             for note, change in loan["notes"].items():
                 notes[note] += change
-                if loan["repaid"]:
-                    notes[note] += loan["repaid"][note]
+                possessedMoney += change*float(note)
+            if loan["repaid"]:
+                for note, change in loan["repaid"].items():
+                    notes[note] += change
+                    possessedMoney += change*float(note)
+
+        return {"total": totalMoney, "possessed": possessedMoney, "notes": notes}
+    
+    def calculateMoneyTransaction(self, transaction):
+        """Calculates the change in money from a single transaction"""
+        totalMoney = 0
+        for note, change in transaction["notes"].items():
+            totalMoney += change*float(note)
+        return totalMoney
 
     
     def configureUi(self):
         """Connects and makes the widgets functional"""
         pass
-
-    def calculateAmmount(self, realBalance:bool=False) -> float:
-        """Calculates the total amount of money from the notes and coins, deducting any outstanding loans"""
-        #TODO: placeholder value
-        return 127.12
 
 
 
