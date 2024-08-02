@@ -4,6 +4,7 @@ from PyQt5.QtCore import pyqtSignal  # signals
 import os  # os interaction
 import sys  # system functions
 import json  # handle json data
+import shutil  # system utilities
 import darkdetect  # detect dark mode
 import functools  # tools for functions
 import datetime  # handle time
@@ -72,13 +73,14 @@ class FinanceApp(Qt.QMainWindow):
     class TransferMoney(Qt.QWidget):
         """Class for the interface to transfer money"""
         canceled = pyqtSignal()
-        done = pyqtSignal(dict)
+        applied = pyqtSignal(dict)
 
-        def __init__(self, data:dict, moneyData:dict, currencyData:dict):
+        def __init__(self, data:dict, moneyData:dict, currencyData:dict, lend:bool=False):
             """Start creating interface"""
             self.data = data
             self.moneyData = moneyData
             self.currencyData = currencyData
+            self.lending = lend
             super().__init__()
             self.buildUi()
         
@@ -122,11 +124,13 @@ class FinanceApp(Qt.QMainWindow):
             self.cancelButton.setFont(QtGui.QFont("Arial", 20))
             self.cancelButton.setFixedHeight(50)
             self.infosLayout.addWidget(self.cancelButton)
+            self.cancelButton.clicked.connect(self.canceled.emit)
 
             self.applyButton = Qt.QPushButton(text="Apply")
             self.applyButton.setFont(QtGui.QFont("Arial", 20))
             self.applyButton.setFixedHeight(50)
             self.infosLayout.addWidget(self.applyButton)
+            self.applyButton.clicked.connect(self.apply)
 
             self.valueLabels = {}
 
@@ -196,6 +200,7 @@ class FinanceApp(Qt.QMainWindow):
         
         def addClicked(self, note):
             """Adds one to the note"""
+            #TODO: prevent borrowing money
             val = int(self.valueLabels[note].text())
             val += 1
             self.valueLabels[note].setText(str(val))
@@ -217,9 +222,21 @@ class FinanceApp(Qt.QMainWindow):
             if self.totalModif == 0:
                 self.modifLabel.setText("No ammount modification")
             elif self.totalModif > 0:
-                self.modifLabel.setText(f"Adding {float(self.totalModif):.2f} {self.currencyData['symbol']} total")
+                addingText = "Loaning" if self.lending else "Adding"
+                self.modifLabel.setText(f"{addingText} {float(self.totalModif):.2f} {self.currencyData['symbol']} total")
             else:
-                self.modifLabel.setText(f"Removing {float(-1*self.totalModif):.2f} {self.currencyData['symbol']} total")
+                removingText = "Lending" if self.lending else "Removing"
+                self.modifLabel.setText(f"{removingText} {float(-1*self.totalModif):.2f} {self.currencyData['symbol']} total")
+        
+        def apply(self):
+            """Applies the modifications"""
+            self.transferData = {}
+            self.transferData["date"] = datetime.datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+            self.transferData["notes"] = {note:int(label.text()) for note, label in self.valueLabels.items()}
+            self.transferData["comment"] = self.commentInput.text()
+            if self.lending:
+                self.transferData["repaid"] = False
+            self.applied.emit(self.transferData)
     
 
 
@@ -513,13 +530,50 @@ class FinanceApp(Qt.QMainWindow):
             self.data["settings"]["name"] = self.usernameInput.text()
             self.saveData()
         
-        def transferMoney():
+        def transferMoney(lend=False):
             self.clear(self.mainLayout)
-            self.transferMoneyWidget = self.TransferMoney(self.data, self.moneyData, self.currencyData)
+            self.transferMoneyWidget = self.TransferMoney(self.data, self.moneyData, self.currencyData, lend=lend)
+            self.transferMoneyWidget.canceled.connect(lambda: self.start(reloaded=True))
+            self.transferMoneyWidget.applied.connect(self.applyTransfer)
             self.mainLayout.addWidget(self.transferMoneyWidget)
         
+        def newFile():
+            confirmation = Qt.QMessageBox.question(self, "Confirmation", "Are you sure you want to create a new file?\nEvery unexported data will be lost!", Qt.QMessageBox.Yes | Qt.QMessageBox.Cancel)
+            if confirmation == Qt.QMessageBox.Yes:
+                os.remove("data.json")
+                self.start(reloaded=True)
+        
+        def exportFile():
+            exportPath = filedialog.asksaveasfilename(defaultextension=".json", filetypes=[("JSON file", "*.json")])
+            if exportPath:
+                shutil.copy("data.json", exportPath)
+                Qt.QMessageBox.information(self, "Success", "Data exported successfully!")
+        
+        def importFile():
+            importedFile = filedialog.askopenfilename(filetypes=[("JSON file", "*.json")])
+            if importedFile:
+                confirmation = Qt.QMessageBox.question(self, "Confirmation", "Are you sure you want to import this file?\nEvery unexported data will be lost!", Qt.QMessageBox.Yes | Qt.QMessageBox.Cancel)
+                if confirmation == Qt.QMessageBox.Yes:
+                    os.remove("data.json")
+                    shutil.copy(importedFile, "data.json")
+                    self.start(reloaded=True)
+                    Qt.QMessageBox.information(self, "Success", "Data imported successfully!")
+
         self.usernameInput.editingFinished.connect(updateUsername)
         self.transferMoneyButton.clicked.connect(transferMoney)
+        self.lendMoneyButton.clicked.connect(lambda: transferMoney(lend=True))
+        self.newFileButton.clicked.connect(newFile)
+        self.exportFileButton.clicked.connect(exportFile)
+        self.importFileButton.clicked.connect(importFile)
+    
+    def applyTransfer(self, transferData:dict):
+        """Applies the money transfer"""
+        if "repaid" in transferData:
+            self.data["loans"].append(transferData)
+        else:
+            self.data["transactions"].append(transferData)
+        self.saveData()
+        self.start(reloaded=True)
     
     def saveData(self):
         """Saves the data to the json file"""

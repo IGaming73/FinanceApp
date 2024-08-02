@@ -67,8 +67,8 @@
                 "200": 0,
                 "500": 0
             },
-            "repaid": false,
-            "comment": "Taken by dad"
+            "comment": "Taken by dad",
+            "repaid": false
         },
         {
             "date": "02/08/2024 20:56:49",
@@ -89,6 +89,7 @@
                 "200": 0,
                 "500": 0
             },
+            "comment": "taken by my friend",
             "repaid": {
                 "0.01": 0,
                 "0.02": 0,
@@ -105,8 +106,7 @@
                 "100": 0,
                 "200": 0,
                 "500": 0
-            },
-            "comment": "taken by my friend"
+            }
         }
     ]
 }
