@@ -200,7 +200,6 @@ class FinanceApp(Qt.QMainWindow):
         
         def addClicked(self, note):
             """Adds one to the note"""
-            #TODO: prevent borrowing money
             val = int(self.valueLabels[note].text())
             val += 1
             self.valueLabels[note].setText(str(val))
@@ -237,6 +236,55 @@ class FinanceApp(Qt.QMainWindow):
             if self.lending:
                 self.transferData["repaid"] = False
             self.applied.emit(self.transferData)
+    
+
+    class ShowHistory(Qt.QWidget):
+        """Widget that displays the detailed transaction history and allows to mark loans as payed"""
+        back = pyqtSignal()
+        repaid = pyqtSignal(dict)  # sends the whole modified data dict
+
+        def __init__(self, data:dict, moneyData:dict, currencyData:dict):
+            """Start creating interface"""
+            self.data = data
+            self.transactions = sorted(self.data["transactions"]+self.data["loans"], key=lambda transaction: datetime.datetime.strptime(transaction.get("date", "01/01/1970 00:00:00"), "%d/%m/%Y %H:%M:%S"), reverse=True)
+            self.moneyData = moneyData
+            self.currencyData = currencyData
+            super().__init__()
+            self.buildUi()
+        
+        def buildUi(self):
+            """Builds the widget UI"""
+            self.mainLayout = Qt.QVBoxLayout()
+            self.setLayout(self.mainLayout)
+
+            self.transactionScroll = Qt.QScrollArea()
+            self.transactionWidget = Qt.QWidget()
+            self.transactionLayout = Qt.QGridLayout()
+            self.transactionScroll.setWidget(self.transactionWidget)
+            self.transactionWidget.setLayout(self.transactionLayout)
+            self.mainLayout.addWidget(self.transactionWidget)
+
+            self.buttonWidget = Qt.QWidget()
+            self.buttonLayout = Qt.QHBoxLayout()
+            self.buttonLayout.setAlignment(QtCore.Qt.AlignCenter | QtCore.Qt.AlignRight)
+            self.buttonWidget.setLayout(self.buttonLayout)
+            self.mainLayout.addWidget(self.buttonWidget)
+
+            self.backButton = Qt.QPushButton(text="Go back")
+            self.backButton.setFont(QtGui.QFont("Arial", 20))
+            self.backButton.setFixedHeight(50)
+            self.buttonLayout.addWidget(self.backButton)
+            self.backButton.clicked.connect(self.back.emit)
+
+            self.gridTexts = ["date time", "action", "value", "comment"]
+            for i in range(len(self.gridTexts)):
+                label = Qt.QLabel(text=self.gridTexts[i])
+                label.setFont(QtGui.QFont("Arial", 20))
+                self.transactionLayout.addWidget(label, 0, i)
+            
+            for row in range(len(self.transactions)):
+                #TODO: show transaction details
+                pass
     
 
 
@@ -329,7 +377,7 @@ class FinanceApp(Qt.QMainWindow):
         self.splitter.addWidget(self.interactWidget)
         self.splitter.addWidget(self.notesWidget)
         self.splitter.addWidget(self.historyWidget)
-        self.splitter.setSizes([250, 350, 400])
+        self.splitter.setSizes([200, 300, 500])
 
         self.buildInteract()
     
@@ -378,11 +426,6 @@ class FinanceApp(Qt.QMainWindow):
         self.lendMoneyButton.setFont(QtGui.QFont("Arial", 20))
         self.lendMoneyButton.setFixedHeight(50)
         self.optionsLayout.addWidget(self.lendMoneyButton)
-
-        self.trackLoansButton = Qt.QPushButton(text="Track loans")
-        self.trackLoansButton.setFont(QtGui.QFont("Arial", 20))
-        self.trackLoansButton.setFixedHeight(50)
-        self.optionsLayout.addWidget(self.trackLoansButton)
 
         self.viewTransactionsButton = Qt.QPushButton(text="View transactions")
         self.viewTransactionsButton.setFont(QtGui.QFont("Arial", 20))
@@ -483,10 +526,14 @@ class FinanceApp(Qt.QMainWindow):
         for transaction in sorted(self.data["transactions"]+self.data["loans"], key=lambda transaction: datetime.datetime.strptime(transaction.get("date", "01/01/1970 00:00:00"), "%d/%m/%Y %H:%M:%S"), reverse=True):
             totalTransfer = self.calculateMoneyTransaction(transaction)
             if "repaid" in transaction:
-                if transaction["repaid"]:
-                    transactionText = "loan: lent"
+                if self.calculateMoneyTransaction(transaction) < 0:
+                    loanText = "lent"
                 else:
-                    transactionText = "loan (unpaid): lent"
+                    loanText = "borrowed"
+                if transaction["repaid"]:
+                    transactionText = f"loan (✔repaid): {loanText}"
+                else:
+                    transactionText = f"loan (❌unpaid): {loanText}"
             else:
                 transactionText = "added" if totalTransfer >= 0 else "removed"
             transactionLabel = Qt.QLabel(text=f"{transaction["date"].split(" ")[0]}: {transactionText} {abs(totalTransfer)} {self.currencyData["symbol"]}")
@@ -537,6 +584,17 @@ class FinanceApp(Qt.QMainWindow):
             self.transferMoneyWidget.applied.connect(self.applyTransfer)
             self.mainLayout.addWidget(self.transferMoneyWidget)
         
+        def viewTransactions():
+            self.clear(self.mainLayout)
+            self.historyWidget = self.ShowHistory(self.data, self.moneyData, self.currencyData)
+            self.historyWidget.back.connect(lambda: self.start(reloaded=True))
+            self.historyWidget.repaid.connect(repaid)
+            self.mainLayout.addWidget(self.historyWidget)
+        
+        def repaid(newData):
+            self.data = newData
+            self.saveData()
+        
         def newFile():
             confirmation = Qt.QMessageBox.question(self, "Confirmation", "Are you sure you want to create a new file?\nEvery unexported data will be lost!", Qt.QMessageBox.Yes | Qt.QMessageBox.Cancel)
             if confirmation == Qt.QMessageBox.Yes:
@@ -562,6 +620,7 @@ class FinanceApp(Qt.QMainWindow):
         self.usernameInput.editingFinished.connect(updateUsername)
         self.transferMoneyButton.clicked.connect(transferMoney)
         self.lendMoneyButton.clicked.connect(lambda: transferMoney(lend=True))
+        self.viewTransactionsButton.clicked.connect(viewTransactions)
         self.newFileButton.clicked.connect(newFile)
         self.exportFileButton.clicked.connect(exportFile)
         self.importFileButton.clicked.connect(importFile)
