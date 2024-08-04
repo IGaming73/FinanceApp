@@ -258,11 +258,13 @@ class FinanceApp(Qt.QMainWindow):
             self.setLayout(self.mainLayout)
 
             self.transactionScroll = Qt.QScrollArea()
+            self.transactionScroll.setWidgetResizable(True)
+            self.transactionScroll.setStyleSheet("QScrollArea {border: none;}")
             self.transactionWidget = Qt.QWidget()
             self.transactionLayout = Qt.QGridLayout()
             self.transactionScroll.setWidget(self.transactionWidget)
             self.transactionWidget.setLayout(self.transactionLayout)
-            self.mainLayout.addWidget(self.transactionWidget)
+            self.mainLayout.addWidget(self.transactionScroll)
 
             self.buttonWidget = Qt.QWidget()
             self.buttonLayout = Qt.QHBoxLayout()
@@ -276,15 +278,46 @@ class FinanceApp(Qt.QMainWindow):
             self.buttonLayout.addWidget(self.backButton)
             self.backButton.clicked.connect(self.back.emit)
 
-            self.gridTexts = ["date time", "action", "value", "comment"]
+            self.gridTexts = ["time", "type", "value", "comment", "repay"]
             for i in range(len(self.gridTexts)):
                 label = Qt.QLabel(text=self.gridTexts[i])
                 label.setFont(QtGui.QFont("Arial", 20))
                 self.transactionLayout.addWidget(label, 0, i)
             
-            for row in range(len(self.transactions)):
-                #TODO: show transaction details
-                pass
+            for i in range(len(self.transactions)):
+                transaction = self.transactions[i]
+
+                dateLabel = Qt.QLabel(text=transaction["date"])
+                dateLabel.setFont(QtGui.QFont("Arial", 16))
+                self.transactionLayout.addWidget(dateLabel, i+1, 0)
+
+                actionText = "loan" if "repaid" in transaction else "transaction"
+                actionLabel = Qt.QLabel(text=actionText)
+                actionLabel.setFont(QtGui.QFont("Arial", 16))
+                self.transactionLayout.addWidget(actionLabel)
+
+                valueText = f"{FinanceApp.calculateMoneyTransaction(self, transaction)} {self.currencyData["symbol"]}"
+                valueLabel = Qt.QLabel(text=valueText)
+                valueLabel.setFont(QtGui.QFont("Arial", 16))
+                self.transactionLayout.addWidget(valueLabel)
+
+                commentLabel = Qt.QLabel(text=transaction["comment"])
+                commentLabel.setWordWrap(True)
+                commentLabel.setFont(QtGui.QFont("Arial", 16))
+                self.transactionLayout.addWidget(commentLabel)
+
+                if "repaid" in transaction:
+                    if not transaction["repaid"]:
+                        repayButton = Qt.QPushButton(text="Repay")
+                        repayButton.setFont(QtGui.QFont("Arial", 16))
+                        repayButton.setFixedHeight(40)
+                        self.transactionLayout.addWidget(repayButton)
+                        repayButton.clicked.connect(functools.partial(self.repay, transaction))
+                
+        def repay(self, transaction):
+            """Repay a loan with given notes"""
+            #TODO
+            pass
     
 
 
