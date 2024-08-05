@@ -73,14 +73,16 @@ class FinanceApp(Qt.QMainWindow):
     class TransferMoney(Qt.QWidget):
         """Class for the interface to transfer money"""
         canceled = pyqtSignal()
+        repaid = pyqtSignal(dict)
         applied = pyqtSignal(dict)
 
-        def __init__(self, data:dict, moneyData:dict, currencyData:dict, lend:bool=False):
+        def __init__(self, data:dict, moneyData:dict, currencyData:dict, lend:bool=False, repay:float=None):
             """Start creating interface"""
             self.data = data
             self.moneyData = moneyData
             self.currencyData = currencyData
             self.lending = lend
+            self.repay = repay
             super().__init__()
             self.buildUi()
         
@@ -104,21 +106,22 @@ class FinanceApp(Qt.QMainWindow):
             self.infosWidget.setLayout(self.infosLayout)
             self.mainLayout.addWidget(self.infosWidget)
 
-            self.modifLabel = Qt.QLabel(text="No ammount modification")
+            self.modifLabel = Qt.QLabel()
             self.modifLabel.setFont(QtGui.QFont("Arial", 24))
             self.infosLayout.addWidget(self.modifLabel)
             self.infosLayout.addSpacing(100)
 
-            self.commentLabel = Qt.QLabel(text="Comment: ")
-            self.commentLabel.setFont(QtGui.QFont("Arial", 20))
-            self.infosLayout.addWidget(self.commentLabel)
+            if self.repay is None:
+                self.commentLabel = Qt.QLabel(text="Comment: ")
+                self.commentLabel.setFont(QtGui.QFont("Arial", 20))
+                self.infosLayout.addWidget(self.commentLabel)
 
-            self.commentInput = Qt.QLineEdit()
-            self.commentInput.setFont(QtGui.QFont("Arial", 20))
-            self.commentInput.setPlaceholderText("Comment on the transaction")
-            self.commentInput.setFixedHeight(50)
-            self.infosLayout.addWidget(self.commentInput)
-            self.infosLayout.addSpacing(50)
+                self.commentInput = Qt.QLineEdit()
+                self.commentInput.setFont(QtGui.QFont("Arial", 20))
+                self.commentInput.setPlaceholderText("Comment on the transaction")
+                self.commentInput.setFixedHeight(50)
+                self.infosLayout.addWidget(self.commentInput)
+                self.infosLayout.addSpacing(50)
 
             self.cancelButton = Qt.QPushButton(text="Cancel")
             self.cancelButton.setFont(QtGui.QFont("Arial", 20))
@@ -197,6 +200,7 @@ class FinanceApp(Qt.QMainWindow):
                 addButton.setFixedSize(50, 50)
                 noteLayout.addWidget(addButton)
                 addButton.clicked.connect(functools.partial(self.addClicked, note))
+            self.updateModif()
         
         def addClicked(self, note):
             """Adds one to the note"""
@@ -215,27 +219,47 @@ class FinanceApp(Qt.QMainWindow):
         
         def updateModif(self):
             """Updates the modifLabel text"""
-            self.totalModif = 0
-            for note in self.currencyData["notes"]:
-                self.totalModif += float(self.valueLabels[note].text())*float(note)
-            if self.totalModif == 0:
-                self.modifLabel.setText("No ammount modification")
-            elif self.totalModif > 0:
-                addingText = "Loaning" if self.lending else "Adding"
-                self.modifLabel.setText(f"{addingText} {float(self.totalModif):.2f} {self.currencyData['symbol']} total")
+            if self.repay is None:
+                self.totalModif = 0
+                for note in self.currencyData["notes"]:
+                    self.totalModif += float(self.valueLabels[note].text())*float(note)
+                if self.totalModif == 0:
+                    self.modifLabel.setText("No ammount modification")
+                elif self.totalModif > 0:
+                    addingText = "Loaning" if self.lending else "Adding"
+                    self.modifLabel.setText(f"{addingText} {float(self.totalModif):.2f} {self.currencyData['symbol']} total")
+                else:
+                    removingText = "Lending" if self.lending else "Removing"
+                    self.modifLabel.setText(f"{removingText} {float(-1*self.totalModif):.2f} {self.currencyData['symbol']} total")
             else:
-                removingText = "Lending" if self.lending else "Removing"
-                self.modifLabel.setText(f"{removingText} {float(-1*self.totalModif):.2f} {self.currencyData['symbol']} total")
+                self.remainingAmmount = self.repay
+                for note in self.currencyData["notes"]:
+                    self.remainingAmmount += float(self.valueLabels[note].text())*float(note)
+                if self.remainingAmmount == 0:
+                    self.modifLabel.setText("Loan properly repaid")
+                elif self.remainingAmmount > 0:
+                    texts = ("Repaid with", "in excess") if self.repay<=0 else ("Missing", "to fully repay")
+                    self.modifLabel.setText(f"{texts[0]} {abs(float(self.remainingAmmount)):.2f} {self.currencyData['symbol']} {texts[1]}")
+                else:
+                    texts = ("Missing", "to fully repay") if self.repay<=0 else ("Repaid with", "in excess")
+                    self.modifLabel.setText(f"{texts[0]} {abs(float(self.remainingAmmount)):.2f} {self.currencyData['symbol']} {texts[1]}")
         
         def apply(self):
             """Applies the modifications"""
-            self.transferData = {}
-            self.transferData["date"] = datetime.datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-            self.transferData["notes"] = {note:int(label.text()) for note, label in self.valueLabels.items()}
-            self.transferData["comment"] = self.commentInput.text()
-            if self.lending:
-                self.transferData["repaid"] = False
-            self.applied.emit(self.transferData)
+            if self.repay is None:
+                self.transferData = {}
+                self.transferData["date"] = datetime.datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+                self.transferData["notes"] = {note:int(label.text()) for note, label in self.valueLabels.items()}
+                self.transferData["comment"] = self.commentInput.text()
+                if self.lending:
+                    self.transferData["repaid"] = False
+                self.applied.emit(self.transferData)
+            else:
+                if self.remainingAmmount != 0:
+                    confirmation = Qt.QMessageBox.question(self, "Confirmation", "The loan has not been repaid with the correct ammount.\nDo you still want to mark it as repaid?", Qt.QMessageBox.Yes | Qt.QMessageBox.Cancel)
+                    if confirmation != Qt.QMessageBox.Yes:
+                        return
+                self.repaid.emit({note:int(self.valueLabels[note].text()) for note in self.currencyData["notes"]})
     
 
     class ShowHistory(Qt.QWidget):
@@ -316,8 +340,19 @@ class FinanceApp(Qt.QMainWindow):
                 
         def repay(self, transaction):
             """Repay a loan with given notes"""
-            #TODO
-            pass
+            self.repayWidget = FinanceApp.TransferMoney(self.data, self.moneyData, self.currencyData, repay=FinanceApp.calculateMoneyTransaction(self, transaction))
+            FinanceApp.clear(self, self.mainLayout)
+            self.mainLayout.addWidget(self.repayWidget)
+            self.repayWidget.canceled.connect(self.back.emit)
+            self.repayWidget.repaid.connect(lambda notes: self.applyRepay(transaction, notes))
+        
+        def applyRepay(self, transaction:dict, notes:dict):
+            """Applies the repay"""
+            for i in range(len(self.data["loans"])):
+                if self.data["loans"][i] == transaction:
+                    self.data["loans"][i]["repaid"] = notes
+            self.repaid.emit(self.data)
+            Qt.QMessageBox.information(self, "Success", "The loan has successfully been repaid!", Qt.QMessageBox.Ok)
     
 
 
@@ -569,7 +604,7 @@ class FinanceApp(Qt.QMainWindow):
                     transactionText = f"loan (❌unpaid): {loanText}"
             else:
                 transactionText = "added" if totalTransfer >= 0 else "removed"
-            transactionLabel = Qt.QLabel(text=f"{transaction["date"].split(" ")[0]}: {transactionText} {abs(totalTransfer)} {self.currencyData["symbol"]}")
+            transactionLabel = Qt.QLabel(text=f"{transaction["date"].split(" ")[0]}: {transactionText} {abs(totalTransfer):.2f} {self.currencyData["symbol"]}")
             transactionLabel.setFont(QtGui.QFont("Arial", 20))
             self.historyListLayout.addWidget(transactionLabel)
             self.historyListLayout.addSpacing(10)
@@ -627,6 +662,8 @@ class FinanceApp(Qt.QMainWindow):
         def repaid(newData):
             self.data = newData
             self.saveData()
+            self.clear(self.mainLayout)
+            self.start(reloaded=True)
         
         def newFile():
             confirmation = Qt.QMessageBox.question(self, "Confirmation", "Are you sure you want to create a new file?\nEvery unexported data will be lost!", Qt.QMessageBox.Yes | Qt.QMessageBox.Cancel)
