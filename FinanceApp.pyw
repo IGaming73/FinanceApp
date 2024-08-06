@@ -5,6 +5,8 @@ import os  # os interaction
 import sys  # system functions
 import json  # handle json data
 import shutil  # system utilities
+import ctypes  # system data
+import locale  # language data
 import darkdetect  # detect dark mode
 import functools  # tools for functions
 import datetime  # handle time
@@ -19,10 +21,12 @@ class FinanceApp(Qt.QMainWindow):
         done = pyqtSignal(dict)
         closed = pyqtSignal()
 
-        def start(self):
+        def start(self, translations:dict, language:str):
             super().__init__()
+            self.translations = translations
+            self.language = language
             self.isClosed = False
-            self.setWindowTitle("Settings")
+            self.setWindowTitle(FinanceApp.translate(self, "settings", self.translations, self.language))
             self.setWindowIcon(QtGui.QIcon("assets\\icon.png"))
             self.buildUi()
             self.show()
@@ -40,7 +44,7 @@ class FinanceApp(Qt.QMainWindow):
             self.currencyWidget.setLayout(self.currencyLayout)
             self.mainLayout.addWidget(self.currencyWidget)
 
-            self.currencyLabel = Qt.QLabel(text="Select currency:")
+            self.currencyLabel = Qt.QLabel(text=FinanceApp.translate(self, "selectCurrency:", self.translations, self.language))
             self.currencyLabel.setFont(QtGui.QFont("Arial", 16))
             self.currencyLabel.setWordWrap(True)
             self.currencyLayout.addWidget(self.currencyLabel)
@@ -52,7 +56,7 @@ class FinanceApp(Qt.QMainWindow):
             self.currencySelect.addItems(self.labeledCurrencies)
             self.currencyLayout.addWidget(self.currencySelect)
 
-            self.doneButton = Qt.QPushButton(text="Done")
+            self.doneButton = Qt.QPushButton(text=FinanceApp.translate(self, "done", self.translations, self.language))
             self.doneButton.setFixedHeight(50)
             self.doneButton.setFont(QtGui.QFont("Arial", 20))
             self.mainLayout.addWidget(self.doneButton)
@@ -76,11 +80,13 @@ class FinanceApp(Qt.QMainWindow):
         repaid = pyqtSignal(dict)
         applied = pyqtSignal(dict)
 
-        def __init__(self, data:dict, moneyData:dict, currencyData:dict, lend:bool=False, repay:float=None):
+        def __init__(self, data:dict, moneyData:dict, currencyData:dict, translations:dict, language:str, lend:bool=False, repay:float=None):
             """Start creating interface"""
             self.data = data
             self.moneyData = moneyData
             self.currencyData = currencyData
+            self.translations = translations
+            self.language = language
             self.lending = lend
             self.repay = repay
             super().__init__()
@@ -112,24 +118,24 @@ class FinanceApp(Qt.QMainWindow):
             self.infosLayout.addSpacing(100)
 
             if self.repay is None:
-                self.commentLabel = Qt.QLabel(text="Comment: ")
+                self.commentLabel = Qt.QLabel(text=FinanceApp.translate(self, "comment:", self.translations, self.language))
                 self.commentLabel.setFont(QtGui.QFont("Arial", 20))
                 self.infosLayout.addWidget(self.commentLabel)
 
                 self.commentInput = Qt.QLineEdit()
                 self.commentInput.setFont(QtGui.QFont("Arial", 20))
-                self.commentInput.setPlaceholderText("Comment on the transaction")
+                self.commentInput.setPlaceholderText(FinanceApp.translate(self, "commentTransaction", self.translations, self.language))
                 self.commentInput.setFixedHeight(50)
                 self.infosLayout.addWidget(self.commentInput)
                 self.infosLayout.addSpacing(50)
 
-            self.cancelButton = Qt.QPushButton(text="Cancel")
+            self.cancelButton = Qt.QPushButton(text=FinanceApp.translate(self, "cancel", self.translations, self.language))
             self.cancelButton.setFont(QtGui.QFont("Arial", 20))
             self.cancelButton.setFixedHeight(50)
             self.infosLayout.addWidget(self.cancelButton)
             self.cancelButton.clicked.connect(self.canceled.emit)
 
-            self.applyButton = Qt.QPushButton(text="Apply")
+            self.applyButton = Qt.QPushButton(text=FinanceApp.translate(self, "apply", self.translations, self.language))
             self.applyButton.setFont(QtGui.QFont("Arial", 20))
             self.applyButton.setFixedHeight(50)
             self.infosLayout.addWidget(self.applyButton)
@@ -161,7 +167,7 @@ class FinanceApp(Qt.QMainWindow):
                 colonLabel.setMinimumWidth(20)
                 noteLayout.addWidget(colonLabel)
 
-                availableLabel = Qt.QLabel(text="available:")
+                availableLabel = Qt.QLabel(text=FinanceApp.translate(self, "available:", self.translations, self.language))
                 availableLabel.setFont(QtGui.QFont("Arial", 20))
                 noteLayout.addWidget(availableLabel)
 
@@ -175,7 +181,7 @@ class FinanceApp(Qt.QMainWindow):
                 semicolonLabel.setMinimumWidth(20)
                 noteLayout.addWidget(semicolonLabel)
 
-                changeLabel = Qt.QLabel(text="add/remove:")
+                changeLabel = Qt.QLabel(text=FinanceApp.translate(self, "addRemove:", self.translations, self.language))
                 changeLabel.setFont(QtGui.QFont("Arial", 20))
                 noteLayout.addWidget(changeLabel)
 
@@ -186,7 +192,8 @@ class FinanceApp(Qt.QMainWindow):
                 self.valueLabels[note] = valueLabel
 
                 removeButton = Qt.QPushButton()
-                removeButton.setIcon(QtGui.QIcon("assets\\remove.png"))
+                iconPath = "assets\\dark\\remove.png" if darkdetect.isDark() else "assets\\light\\remove.png"
+                removeButton.setIcon(QtGui.QIcon(iconPath))
                 removeButton.setIconSize(QtCore.QSize(40, 40))
                 removeButton.setFixedSize(50, 50)
                 noteLayout.addWidget(removeButton)
@@ -195,7 +202,8 @@ class FinanceApp(Qt.QMainWindow):
                 noteLayout.addSpacing(10)
 
                 addButton = Qt.QPushButton()
-                addButton.setIcon(QtGui.QIcon("assets\\add.png"))
+                iconPath = "assets\\dark\\add.png" if darkdetect.isDark() else "assets\\light\\add.png"
+                addButton.setIcon(QtGui.QIcon(iconPath))
                 addButton.setIconSize(QtCore.QSize(40, 40))
                 addButton.setFixedSize(50, 50)
                 noteLayout.addWidget(addButton)
@@ -224,24 +232,24 @@ class FinanceApp(Qt.QMainWindow):
                 for note in self.currencyData["notes"]:
                     self.totalModif += float(self.valueLabels[note].text())*float(note)
                 if self.totalModif == 0:
-                    self.modifLabel.setText("No ammount modification")
+                    self.modifLabel.setText(FinanceApp.translate(self, "noAmmountModif", self.translations, self.language))
                 elif self.totalModif > 0:
-                    addingText = "Loaning" if self.lending else "Adding"
-                    self.modifLabel.setText(f"{addingText} {float(self.totalModif):.2f} {self.currencyData['symbol']} total")
+                    addingText = FinanceApp.translate(self, "borrowing", self.translations, self.language) if self.lending else FinanceApp.translate(self, "adding", self.translations, self.language)
+                    self.modifLabel.setText(f"{addingText} {float(self.totalModif):.2f} {self.currencyData['symbol']} {FinanceApp.translate(self, "total", self.translations, self.language)}")
                 else:
-                    removingText = "Lending" if self.lending else "Removing"
-                    self.modifLabel.setText(f"{removingText} {float(-1*self.totalModif):.2f} {self.currencyData['symbol']} total")
+                    removingText = FinanceApp.translate(self, "lending", self.translations, self.language) if self.lending else FinanceApp.translate(self, "removing", self.translations, self.language)
+                    self.modifLabel.setText(f"{removingText} {float(-1*self.totalModif):.2f} {self.currencyData['symbol']} {FinanceApp.translate(self, "total", self.translations, self.language)}")
             else:
                 self.remainingAmmount = self.repay
                 for note in self.currencyData["notes"]:
                     self.remainingAmmount += float(self.valueLabels[note].text())*float(note)
                 if self.remainingAmmount == 0:
-                    self.modifLabel.setText("Loan properly repaid")
+                    self.modifLabel.setText(FinanceApp.translate(self, "properlyRepaid", self.translations, self.language))
                 elif self.remainingAmmount > 0:
-                    texts = ("Repaid with", "in excess") if self.repay<=0 else ("Missing", "to fully repay")
+                    texts = FinanceApp.translate(self, "repaidWithExcess", self.translations, self.language) if self.repay<=0 else FinanceApp.translate(self, "missingToRepay", self.translations, self.language)
                     self.modifLabel.setText(f"{texts[0]} {abs(float(self.remainingAmmount)):.2f} {self.currencyData['symbol']} {texts[1]}")
                 else:
-                    texts = ("Missing", "to fully repay") if self.repay<=0 else ("Repaid with", "in excess")
+                    texts = FinanceApp.translate(self, "missingToRepay", self.translations, self.language) if self.repay<=0 else FinanceApp.translate(self, "repaidWithExcess", self.translations, self.language)
                     self.modifLabel.setText(f"{texts[0]} {abs(float(self.remainingAmmount)):.2f} {self.currencyData['symbol']} {texts[1]}")
         
         def apply(self):
@@ -256,7 +264,7 @@ class FinanceApp(Qt.QMainWindow):
                 self.applied.emit(self.transferData)
             else:
                 if self.remainingAmmount != 0:
-                    confirmation = Qt.QMessageBox.question(self, "Confirmation", "The loan has not been repaid with the correct ammount.\nDo you still want to mark it as repaid?", Qt.QMessageBox.Yes | Qt.QMessageBox.Cancel)
+                    confirmation = Qt.QMessageBox.question(self, FinanceApp.translate(self, "confirmation", self.translations, self.language), FinanceApp.translate(self, "loanIncorrectWarning", self.translations, self.language), Qt.QMessageBox.Yes | Qt.QMessageBox.Cancel)
                     if confirmation != Qt.QMessageBox.Yes:
                         return
                 self.repaid.emit({note:int(self.valueLabels[note].text()) for note in self.currencyData["notes"]})
@@ -267,12 +275,14 @@ class FinanceApp(Qt.QMainWindow):
         back = pyqtSignal()
         repaid = pyqtSignal(dict)  # sends the whole modified data dict
 
-        def __init__(self, data:dict, moneyData:dict, currencyData:dict):
+        def __init__(self, data:dict, moneyData:dict, currencyData:dict, translations:dict, language:str):
             """Start creating interface"""
             self.data = data
-            self.transactions = sorted(self.data["transactions"]+self.data["loans"], key=lambda transaction: datetime.datetime.strptime(transaction.get("date", "01/01/1970 00:00:00"), "%d/%m/%Y %H:%M:%S"), reverse=True)
+            self.transactions = sorted(self.data["transactions"]+self.data["loans"], key=lambda transaction: datetime.datetime.strptime(transaction["date"], "%d/%m/%Y %H:%M:%S"), reverse=True)
             self.moneyData = moneyData
             self.currencyData = currencyData
+            self.translations = translations
+            self.language = language
             super().__init__()
             self.buildUi()
         
@@ -286,6 +296,7 @@ class FinanceApp(Qt.QMainWindow):
             self.transactionScroll.setStyleSheet("QScrollArea {border: none;}")
             self.transactionWidget = Qt.QWidget()
             self.transactionLayout = Qt.QGridLayout()
+            self.transactionLayout.setAlignment(QtCore.Qt.AlignTop)
             self.transactionScroll.setWidget(self.transactionWidget)
             self.transactionWidget.setLayout(self.transactionLayout)
             self.mainLayout.addWidget(self.transactionScroll)
@@ -296,13 +307,13 @@ class FinanceApp(Qt.QMainWindow):
             self.buttonWidget.setLayout(self.buttonLayout)
             self.mainLayout.addWidget(self.buttonWidget)
 
-            self.backButton = Qt.QPushButton(text="Go back")
+            self.backButton = Qt.QPushButton(text=FinanceApp.translate(self, "back", self.translations, self.language))
             self.backButton.setFont(QtGui.QFont("Arial", 20))
             self.backButton.setFixedHeight(50)
             self.buttonLayout.addWidget(self.backButton)
             self.backButton.clicked.connect(self.back.emit)
 
-            self.gridTexts = ["time", "type", "value", "comment", "repay"]
+            self.gridTexts = FinanceApp.translate(self, "gridTexts", self.translations, self.language)
             for i in range(len(self.gridTexts)):
                 label = Qt.QLabel(text=self.gridTexts[i])
                 label.setFont(QtGui.QFont("Arial", 20))
@@ -315,12 +326,12 @@ class FinanceApp(Qt.QMainWindow):
                 dateLabel.setFont(QtGui.QFont("Arial", 16))
                 self.transactionLayout.addWidget(dateLabel, i+1, 0)
 
-                actionText = "loan" if "repaid" in transaction else "transaction"
+                actionText = FinanceApp.translate(self, "loan", self.translations, self.language) if "repaid" in transaction else FinanceApp.translate(self, "transaction", self.translations, self.language)
                 actionLabel = Qt.QLabel(text=actionText)
                 actionLabel.setFont(QtGui.QFont("Arial", 16))
                 self.transactionLayout.addWidget(actionLabel)
 
-                valueText = f"{FinanceApp.calculateMoneyTransaction(self, transaction)} {self.currencyData["symbol"]}"
+                valueText = f"{FinanceApp.calculateMoneyTransaction(self, transaction):.2f} {self.currencyData["symbol"]}"
                 valueLabel = Qt.QLabel(text=valueText)
                 valueLabel.setFont(QtGui.QFont("Arial", 16))
                 self.transactionLayout.addWidget(valueLabel)
@@ -332,7 +343,7 @@ class FinanceApp(Qt.QMainWindow):
 
                 if "repaid" in transaction:
                     if not transaction["repaid"]:
-                        repayButton = Qt.QPushButton(text="Repay")
+                        repayButton = Qt.QPushButton(text=FinanceApp.translate(self, "repay", self.translations, self.language))
                         repayButton.setFont(QtGui.QFont("Arial", 16))
                         repayButton.setFixedHeight(40)
                         self.transactionLayout.addWidget(repayButton)
@@ -340,7 +351,7 @@ class FinanceApp(Qt.QMainWindow):
                 
         def repay(self, transaction):
             """Repay a loan with given notes"""
-            self.repayWidget = FinanceApp.TransferMoney(self.data, self.moneyData, self.currencyData, repay=FinanceApp.calculateMoneyTransaction(self, transaction))
+            self.repayWidget = FinanceApp.TransferMoney(self.data, self.moneyData, self.currencyData, self.translations, self.language, repay=FinanceApp.calculateMoneyTransaction(self, transaction))
             FinanceApp.clear(self, self.mainLayout)
             self.mainLayout.addWidget(self.repayWidget)
             self.repayWidget.canceled.connect(self.back.emit)
@@ -352,7 +363,7 @@ class FinanceApp(Qt.QMainWindow):
                 if self.data["loans"][i] == transaction:
                     self.data["loans"][i]["repaid"] = notes
             self.repaid.emit(self.data)
-            Qt.QMessageBox.information(self, "Success", "The loan has successfully been repaid!", Qt.QMessageBox.Ok)
+            Qt.QMessageBox.information(self, FinanceApp.translate(self, "success", self.translations, self.language), FinanceApp.translate(self, "successRepaidText", self.translations, self.language), Qt.QMessageBox.Ok)
     
 
 
@@ -374,17 +385,24 @@ class FinanceApp(Qt.QMainWindow):
             with open("data.json", "r", encoding="utf-8") as dataFile:
                 self.data = json.load(dataFile)
             self.loadApp()
-        
-        def closed():
-            self.checkSettings()
 
         if not self.data:
             self.askSettingsPopup = self.AskSettings()
-            self.askSettingsPopup.start()
+            self.askSettingsPopup.start(self.translations, self.language)
             self.askSettingsPopup.done.connect(done)
-            self.askSettingsPopup.closed.connect(closed)
+            self.askSettingsPopup.closed.connect(self.checkSettings)
         else:
             self.loadApp()
+    
+    def translate(self, textId:str, translations:dict, language:str) -> str:
+        """Gives the translation of the given word id"""
+        if textId in translations:
+            if language in translations[textId]:
+                return translations[textId][language]
+            else:
+                return translations[textId]["en"]
+        else:
+            return textId
     
     def loadApp(self):
         """Loads the app"""
@@ -410,6 +428,10 @@ class FinanceApp(Qt.QMainWindow):
                 self.data = {}
         with open("currencies.json", "r", encoding="utf-8") as currenciesFile:
             self.currencies = json.load(currenciesFile)
+        with open("languages.json", "r", encoding="utf-8") as languagesFile:
+            self.translations = json.load(languagesFile)
+        windll = ctypes.windll.kernel32
+        self.language = locale.windows_locale[windll.GetUserDefaultUILanguage()].split("_")[0]
     
     def defineVariables(self):
         """Define some variables that will be useful"""
@@ -468,7 +490,7 @@ class FinanceApp(Qt.QMainWindow):
 
         # build the status widget
         self.usernameInput = Qt.QLineEdit(text=self.data["settings"]["name"])
-        self.usernameInput.setPlaceholderText("Username")
+        self.usernameInput.setPlaceholderText(self.translate("username", self.translations, self.language))
         self.usernameInput.setFont(QtGui.QFont("Arial", 20))
         self.usernameInput.setFixedHeight(50)
         self.statusLayout.addWidget(self.usernameInput)
@@ -479,23 +501,23 @@ class FinanceApp(Qt.QMainWindow):
         self.balanceLabel.setAlignment(QtCore.Qt.AlignCenter)
         self.statusLayout.addWidget(self.balanceLabel)
 
-        self.realBalanceLabel = Qt.QLabel(text=f"({float(self.moneyData["possessed"]):.2f} {self.currencyData['symbol']} in bank)")
+        self.realBalanceLabel = Qt.QLabel(text=f"({float(self.moneyData["possessed"]):.2f} {self.currencyData['symbol']} {self.translate("inBank", self.translations, self.language)})")
         self.realBalanceLabel.setFont(QtGui.QFont("Arial", 16))
         self.realBalanceLabel.setAlignment(QtCore.Qt.AlignCenter)
         self.statusLayout.addWidget(self.realBalanceLabel)
 
         # build the options widget
-        self.transferMoneyButton = Qt.QPushButton(text="Transfer money")
+        self.transferMoneyButton = Qt.QPushButton(text=self.translate("transferMoney", self.translations, self.language))
         self.transferMoneyButton.setFont(QtGui.QFont("Arial", 20))
         self.transferMoneyButton.setFixedHeight(50)
         self.optionsLayout.addWidget(self.transferMoneyButton)
 
-        self.lendMoneyButton = Qt.QPushButton(text="Lend money")
+        self.lendMoneyButton = Qt.QPushButton(text=self.translate("lendMoney", self.translations, self.language))
         self.lendMoneyButton.setFont(QtGui.QFont("Arial", 20))
         self.lendMoneyButton.setFixedHeight(50)
         self.optionsLayout.addWidget(self.lendMoneyButton)
 
-        self.viewTransactionsButton = Qt.QPushButton(text="View transactions")
+        self.viewTransactionsButton = Qt.QPushButton(text=self.translate("viewTransactions", self.translations, self.language))
         self.viewTransactionsButton.setFont(QtGui.QFont("Arial", 20))
         self.viewTransactionsButton.setFixedHeight(50)
         self.optionsLayout.addWidget(self.viewTransactionsButton)
@@ -506,17 +528,17 @@ class FinanceApp(Qt.QMainWindow):
         self.filesWidget.setLayout(self.filesLayout)
         self.optionsLayout.addWidget(self.filesWidget)
         
-        self.newFileButton = Qt.QPushButton(text="New")
+        self.newFileButton = Qt.QPushButton(text=self.translate("new", self.translations, self.language))
         self.newFileButton.setFont(QtGui.QFont("Arial", 20))
         self.newFileButton.setFixedHeight(50)
         self.filesLayout.addWidget(self.newFileButton)
 
-        self.exportFileButton = Qt.QPushButton(text="Export")
+        self.exportFileButton = Qt.QPushButton(text=self.translate("export", self.translations, self.language))
         self.exportFileButton.setFont(QtGui.QFont("Arial", 20))
         self.exportFileButton.setFixedHeight(50)
         self.filesLayout.addWidget(self.exportFileButton)
 
-        self.importFileButton = Qt.QPushButton(text="Import")
+        self.importFileButton = Qt.QPushButton(text=self.translate("import", self.translations, self.language))
         self.importFileButton.setFont(QtGui.QFont("Arial", 20))
         self.importFileButton.setFixedHeight(50)
         self.filesLayout.addWidget(self.importFileButton)
@@ -580,7 +602,7 @@ class FinanceApp(Qt.QMainWindow):
         self.historyLabelWidget.setLayout(self.historyLabelLayout)
         self.historyScrollLayout.addWidget(self.historyLabelWidget)
 
-        self.historyLabel = Qt.QLabel(text="Quick transactions history")
+        self.historyLabel = Qt.QLabel(text=self.translate("quickHistory", self.translations, self.language))
         self.historyLabel.setFont(QtGui.QFont("Arial", 24))
         self.historyLabel.setAlignment(QtCore.Qt.AlignCenter)
         self.historyLabelLayout.addWidget(self.historyLabel)
@@ -595,15 +617,15 @@ class FinanceApp(Qt.QMainWindow):
             totalTransfer = self.calculateMoneyTransaction(transaction)
             if "repaid" in transaction:
                 if self.calculateMoneyTransaction(transaction) < 0:
-                    loanText = "lent"
+                    loanText = self.translate("lent", self.translations, self.language)
                 else:
-                    loanText = "borrowed"
+                    loanText = self.translate("borrowed", self.translations, self.language)
                 if transaction["repaid"]:
-                    transactionText = f"loan (✔repaid): {loanText}"
+                    transactionText = f"{self.translate("loanRepaid", self.translations, self.language)} {loanText}"
                 else:
-                    transactionText = f"loan (❌unpaid): {loanText}"
+                    transactionText = f"{self.translate("loanUnpaid", self.translations, self.language)} {loanText}"
             else:
-                transactionText = "added" if totalTransfer >= 0 else "removed"
+                transactionText = self.translate("added", self.translations, self.language) if totalTransfer >= 0 else self.translate("removed", self.translations, self.language)
             transactionLabel = Qt.QLabel(text=f"{transaction["date"].split(" ")[0]}: {transactionText} {abs(totalTransfer):.2f} {self.currencyData["symbol"]}")
             transactionLabel.setFont(QtGui.QFont("Arial", 20))
             self.historyListLayout.addWidget(transactionLabel)
@@ -621,13 +643,18 @@ class FinanceApp(Qt.QMainWindow):
         possessedMoney = totalMoney
         
         for loan in loans:
+            baseLoan = 0
             for note, change in loan["notes"].items():
                 notes[note] += change
-                possessedMoney += change*float(note)
+                baseLoan += change*float(note)
+            possessedMoney += baseLoan
             if loan["repaid"]:
+                totalMoney += baseLoan
                 for note, change in loan["repaid"].items():
                     notes[note] += change
-                    possessedMoney += change*float(note)
+                    changeValue = change*float(note)
+                    totalMoney += changeValue
+                    possessedMoney += changeValue
 
         return {"total": totalMoney, "possessed": possessedMoney, "notes": notes}
     
@@ -647,14 +674,14 @@ class FinanceApp(Qt.QMainWindow):
         
         def transferMoney(lend=False):
             self.clear(self.mainLayout)
-            self.transferMoneyWidget = self.TransferMoney(self.data, self.moneyData, self.currencyData, lend=lend)
+            self.transferMoneyWidget = self.TransferMoney(self.data, self.moneyData, self.currencyData, self.translations, self.language, lend=lend)
             self.transferMoneyWidget.canceled.connect(lambda: self.start(reloaded=True))
             self.transferMoneyWidget.applied.connect(self.applyTransfer)
             self.mainLayout.addWidget(self.transferMoneyWidget)
         
         def viewTransactions():
             self.clear(self.mainLayout)
-            self.historyWidget = self.ShowHistory(self.data, self.moneyData, self.currencyData)
+            self.historyWidget = self.ShowHistory(self.data, self.moneyData, self.currencyData, self.translations, self.language)
             self.historyWidget.back.connect(lambda: self.start(reloaded=True))
             self.historyWidget.repaid.connect(repaid)
             self.mainLayout.addWidget(self.historyWidget)
@@ -666,7 +693,7 @@ class FinanceApp(Qt.QMainWindow):
             self.start(reloaded=True)
         
         def newFile():
-            confirmation = Qt.QMessageBox.question(self, "Confirmation", "Are you sure you want to create a new file?\nEvery unexported data will be lost!", Qt.QMessageBox.Yes | Qt.QMessageBox.Cancel)
+            confirmation = Qt.QMessageBox.question(self, self.translate("confirmation", self.translations, self.language), self.translate("newFileWarning", self.translations, self.language), Qt.QMessageBox.Yes | Qt.QMessageBox.Cancel)
             if confirmation == Qt.QMessageBox.Yes:
                 os.remove("data.json")
                 self.start(reloaded=True)
@@ -675,17 +702,17 @@ class FinanceApp(Qt.QMainWindow):
             exportPath = filedialog.asksaveasfilename(defaultextension=".json", filetypes=[("JSON file", "*.json")])
             if exportPath:
                 shutil.copy("data.json", exportPath)
-                Qt.QMessageBox.information(self, "Success", "Data exported successfully!")
+                Qt.QMessageBox.information(self, self.translate("success", self.translations, self.language), self.translate("exportedSuccessfully", self.translations, self.language))
         
         def importFile():
             importedFile = filedialog.askopenfilename(filetypes=[("JSON file", "*.json")])
             if importedFile:
-                confirmation = Qt.QMessageBox.question(self, "Confirmation", "Are you sure you want to import this file?\nEvery unexported data will be lost!", Qt.QMessageBox.Yes | Qt.QMessageBox.Cancel)
+                confirmation = Qt.QMessageBox.question(self, self.translate("confirmation", self.translations, self.language), self.translate("importWarning", self.translations, self.language), Qt.QMessageBox.Yes | Qt.QMessageBox.Cancel)
                 if confirmation == Qt.QMessageBox.Yes:
                     os.remove("data.json")
                     shutil.copy(importedFile, "data.json")
                     self.start(reloaded=True)
-                    Qt.QMessageBox.information(self, "Success", "Data imported successfully!")
+                    Qt.QMessageBox.information(self, self.translate("success", self.translations, self.language), self.translate("importedSuccessfully", self.translations, self.language))
 
         self.usernameInput.editingFinished.connect(updateUsername)
         self.transferMoneyButton.clicked.connect(transferMoney)

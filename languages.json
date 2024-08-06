@@ -1,0 +1,210 @@
+{
+    "settings": {
+        "en": "Settings",
+        "fr": "Paramètres"
+    },
+    "selectCurrency:": {
+        "en": "Select currency:",
+        "fr": "Sélectionner la monaie :"
+    },
+    "done": {
+        "en": "Done",
+        "fr": "Valider"
+    },
+    "comment:": {
+        "en": "Comment: ",
+        "fr": "Commentaire : "
+    },
+    "commentTransaction": {
+        "en": "Comment on the transaction",
+        "fr": "Commentaire sur la transaction"
+    },
+    "cancel": {
+        "en": "Cancel",
+        "fr": "Annuler"
+    },
+    "apply": {
+        "en": "Apply",
+        "fr": "Appliquer"
+    },
+    "available:": {
+        "en": "available:",
+        "fr": "disponnible :"
+    },
+    "addRemove:": {
+        "en": "add/remove:",
+        "fr": "ajouter/retirer:"
+    },
+    "noAmmountModif": {
+        "en": "No ammount modification",
+        "fr": "Pas de changement de valeur"
+    },
+    "borrowing": {
+        "en": "Borrowing",
+        "fr": "Emprunter"
+    },
+    "adding": {
+        "en": "Adding",
+        "fr": "Ajouter"
+    },
+    "lending": {
+        "en": "Lending",
+        "fr": "Prêter"
+    },
+    "removing": {
+        "en": "Removing",
+        "fr": "Retirer"
+    },
+    "total": {
+        "en": "total",
+        "fr": "au total"
+    },
+    "properlyRepaid": {
+        "en": "Loan properly repaid",
+        "fr": "Prêt correctement remboursé"
+    },
+    "repaidWithExcess": {
+        "en": [
+            "Repaid with",
+            "in excess"
+        ],
+        "fr": [
+            "Remboursé avec",
+            "en excès"
+        ]
+    },
+    "missingToRepay": {
+        "en": [
+            "Missing",
+            "to fully repay"
+        ],
+        "fr": [
+            "",
+            "manquants pour rembourser totalement"
+        ]
+    },
+    "confirmation": {
+        "en": "Confirmation",
+        "fr": "Confirmation"
+    },
+    "loanIncorrectWarning": {
+        "en": "The loan has not been repaid with the correct ammount.\nDo you still want to mark it as repaid?",
+        "fr": "Le prêt n'a pas été remboursé avec le montant correct.\nVoulez-vous quand même le marquer comme remboursé ?"
+    },
+    "back": {
+        "en": "Back",
+        "fr": "Retour"
+    },
+    "gridTexts": {
+        "en": [
+            "Time",
+            "Type",
+            "Value",
+            "Comment",
+            "Repay"
+        ],
+        "fr": [
+            "Moment",
+            "Type",
+            "Valeur",
+            "Commentaire",
+            "Rembourser"
+        ]
+    },
+    "loan": {
+        "en": "Loan",
+        "fr": "Prêt"
+    },
+    "transaction": {
+        "en": "Transaction",
+        "fr": "Transaction"
+    },
+    "repay": {
+        "en": "Repay",
+        "fr": "Rembourser"
+    },
+    "success": {
+        "en": "Success",
+        "fr": "Succès"
+    },
+    "successRepaidText": {
+        "en": "The loan has successfully been repaid!",
+        "fr": "Le prêt a été remboursé avec succès !"
+    },
+    "username": {
+        "en": "Username",
+        "fr": "Nom d'utilisateur"
+    },
+    "inBank": {
+        "en": "in bank",
+        "fr": "en réserve"
+    },
+    "transferMoney": {
+        "en": "Transfer money",
+        "fr": "Transférer de l'argent"
+    },
+    "lendMoney": {
+        "en": "Lend money",
+        "fr": "Prêter de l'argent"
+    },
+    "viewTransactions": {
+        "en": "View transactions",
+        "fr": "Voir les transactions"
+    },
+    "new": {
+        "en": "New",
+        "fr": "Nouveau"
+    },
+    "export": {
+        "en": "Export",
+        "fr": "Exporter"
+    },
+    "import": {
+        "en": "Import",
+        "fr": "Importer"
+    },
+    "quickHistory": {
+        "en": "Quick transactions history",
+        "fr": "Historique rapide des transactions"
+    },
+    "lent": {
+        "en": "lent",
+        "fr": "a prêté"
+    },
+    "borrowed": {
+        "en": "borrowed",
+        "fr": "a emprunté"
+    },
+    "loanRepaid": {
+        "en": "loan (✔repaid):",
+        "fr": "prêt (✔remboursé) :"
+    },
+    "loanUnpaid": {
+        "en": "loan (❌unpaid):",
+        "fr": "prêt (❌non remboursé) :"
+    },
+    "added": {
+        "en": "added",
+        "fr": "a ajouté"
+    },
+    "removed": {
+        "en": "removed",
+        "fr": "a retiré"
+    },
+    "newFileWarning": {
+        "en": "Are you sure you want to create a new file?\nEvery unexported data will be lost!",
+        "fr": "Êtes-vous sûr de vouloir créer un nouveau fichier ?\nToutes les données non exportées seront perdues !"
+    },
+    "exportedSuccessfully": {
+        "en": "Data exported successfully!",
+        "fr": "Données exportées avec succès !"
+    },
+    "importWarning": {
+        "en": "Are you sure you want to import this file?\nEvery unexported data will be lost!",
+        "fr": "Êtes-vous sûr de vouloir importer ce fichier ?\nToutes les données non exportées seront perdues !"
+    },
+    "importedSuccessfully": {
+        "en": "Data imported successfully!",
+        "fr": "Données importées avec succès !"
+    }
+}
